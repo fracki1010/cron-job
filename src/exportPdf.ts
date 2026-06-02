@@ -1,15 +1,51 @@
 import jsPDF from 'jspdf'
 
-// ─── layout ────────────────────────────────────────────────
-const PAGE_W = 210
-const PAGE_H = 297
-const ML = 15 // margin-left
-const CELL_W = 25.72 // (210 - 2×15) / 7
-const CELL_H = 20
-const HEADER_H = 9
-const TABLE_X = ML
-const TABLE_Y = 42
+export type PdfTheme = 'dark' | 'light'
+export type PdfOrientation = 'portrait' | 'landscape'
+
 const DAYS = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa']
+
+// ─── colour themes ─────────────────────────────────────────
+const THEMES: Record<PdfTheme, Record<string, string>> = {
+  dark: {
+    pageBg: '#020617',
+    title: '#f59e0b',
+    monthTitle: '#e2e8f0',
+    headerBg: '#334155',
+    headerText: '#cbd5e1',
+    cellBg: '#1e293b',
+    cellText: '#e2e8f0',
+    cellBorder: '#334155',
+    paddingBg: '#0f172a',
+    paddingText: '#475569',
+    paddingBorder: '#1e293b',
+    restBg: '#064e3b',
+    restText: '#6ee7b7',
+    restBorder: '#34d399',
+    restLabel: '#a7f3d0',
+    summaryText: '#94a3b8',
+    summaryAccent: '#34d399',
+  },
+  light: {
+    pageBg: '#ffffff',
+    title: '#0f172a',
+    monthTitle: '#475569',
+    headerBg: '#1e293b',
+    headerText: '#ffffff',
+    cellBg: '#ffffff',
+    cellText: '#0f172a',
+    cellBorder: '#cbd5e1',
+    paddingBg: '#f8fafc',
+    paddingText: '#94a3b8',
+    paddingBorder: '#e2e8f0',
+    restBg: '#059669',
+    restText: '#ffffff',
+    restBorder: '#047857',
+    restLabel: '#d1fae5',
+    summaryText: '#475569',
+    summaryAccent: '#059669',
+  },
+}
 
 // ─── helpers ───────────────────────────────────────────────
 function hex(str: string): [number, number, number] {
@@ -26,7 +62,6 @@ interface Cell {
   day: number
   dateStr: string
   isPadding: boolean
-  isWeekend: boolean
 }
 
 function buildGrid(year: number, month: number): Cell[] {
@@ -59,39 +94,27 @@ function buildGrid(year: number, month: number): Cell[] {
       isPad = false
     }
 
-    const dow = i % 7
     cells.push({
       day,
       dateStr: `${y}-${pad(m + 1)}-${pad(day)}`,
       isPadding: isPad,
-      isWeekend: dow === 0 || dow === 6,
     })
   }
   return cells
 }
 
-// ─── colours (slate dark theme) ────────────────────────────
-const C = {
-  pageBg: '#020617',
-  title: '#f59e0b',       // amber-400
-  monthTitle: '#e2e8f0',  // slate-200
-  headerBg: '#334155',    // slate-700
-  headerText: '#cbd5e1',  // slate-300
-  normalBg: '#1e293b',    // slate-800
-  normalText: '#e2e8f0',  // slate-200
-  normalBorder: '#334155', // slate-700
-  weekendBg: '#0f172a',   // slate-900 (slightly different)
-  weekendText: '#94a3b8', // slate-400
-  weekendBorder: '#1e293b',
-  paddingBg: '#0f172a',   // slate-900
-  paddingText: '#475569', // slate-600
-  paddingBorder: '#1e293b',
-  restBg: '#064e3b',      // emerald-900
-  restText: '#6ee7b7',    // emerald-300
-  restBorder: '#34d399',  // emerald-400
-  restLabel: '#a7f3d0',   // emerald-200
-  summaryText: '#94a3b8', // slate-400
-  summaryAccent: '#34d399', // emerald-400
+// ─── layout per orientation ────────────────────────────────
+function layout(orientation: PdfOrientation) {
+  const isPortrait = orientation === 'portrait'
+  const pageW = isPortrait ? 210 : 297
+  const pageH = isPortrait ? 297 : 210
+  const ml = 15
+  const cellW = (pageW - 2 * ml) / 7 // full width, 7 columns
+  const cellH = isPortrait ? 26 : 22
+  const headerH = 11
+  const tableX = ml
+  const tableY = 44
+  return { pageW, pageH, cellW, cellH, headerH, tableX, tableY }
 }
 
 // ─── main ──────────────────────────────────────────────────
@@ -99,51 +122,56 @@ export async function exportCalendarPdf(
   year: number,
   month: number,
   selectedDays: Set<string>,
-  _monthName: string,
+  monthName: string,
+  theme: PdfTheme,
+  orientation: PdfOrientation,
 ): Promise<string> {
-  const pdf = new jsPDF('p', 'mm', 'a4')
+  const jsPdfOrientation = orientation === 'portrait' ? 'p' : 'l'
+  const pdf = new jsPDF(jsPdfOrientation, 'mm', 'a4')
   const cells = buildGrid(year, month)
+  const C = THEMES[theme]
+  const L = layout(orientation)
 
-  // ---------- page background ----------
+  // ── page bg ──
   pdf.setFillColor(...hex(C.pageBg))
-  pdf.rect(0, 0, PAGE_W, PAGE_H, 'F')
+  pdf.rect(0, 0, L.pageW, L.pageH, 'F')
 
-  // ---------- title ----------
+  // ── title ──
   pdf.setTextColor(...hex(C.title))
-  pdf.setFontSize(20)
+  pdf.setFontSize(24)
   pdf.setFont('helvetica', 'bold')
-  pdf.text('CronoJob', PAGE_W / 2, 18, { align: 'center' })
+  pdf.text('CronoJob', L.pageW / 2, 18, { align: 'center' })
 
   pdf.setTextColor(...hex(C.monthTitle))
-  pdf.setFontSize(13)
+  pdf.setFontSize(15)
   pdf.setFont('helvetica', 'normal')
-  pdf.text(`${_monthName} ${year}`, PAGE_W / 2, 29, { align: 'center' })
+  pdf.text(`${monthName} ${year}`, L.pageW / 2, 31, { align: 'center' })
 
-  // ---------- day headers ----------
+  // ── day headers ──
   for (let c = 0; c < 7; c++) {
-    const x = TABLE_X + c * CELL_W
+    const x = L.tableX + c * L.cellW
     pdf.setFillColor(...hex(C.headerBg))
-    pdf.rect(x, TABLE_Y, CELL_W, HEADER_H, 'F')
-    pdf.setDrawColor(...hex(C.normalBorder))
-    pdf.rect(x, TABLE_Y, CELL_W, HEADER_H, 'S')
+    pdf.rect(x, L.tableY, L.cellW, L.headerH, 'F')
+    pdf.setDrawColor(...hex(C.cellBorder))
+    pdf.rect(x, L.tableY, L.cellW, L.headerH, 'S')
     pdf.setTextColor(...hex(C.headerText))
-    pdf.setFontSize(7)
+    pdf.setFontSize(10)
     pdf.setFont('helvetica', 'bold')
-    pdf.text(DAYS[c], x + CELL_W / 2, TABLE_Y + HEADER_H / 2 + 1.2, { align: 'center' })
+    pdf.text(DAYS[c], x + L.cellW / 2, L.tableY + L.headerH / 2 + 1.5, { align: 'center' })
   }
 
-  // ---------- day cells ----------
-  const bodyY = TABLE_Y + HEADER_H
+  // ── day cells ──
+  const bodyY = L.tableY + L.headerH
 
   for (const cell of cells) {
     const i = cells.indexOf(cell)
     const row = Math.floor(i / 7)
     const col = i % 7
-    const x = TABLE_X + col * CELL_W
-    const y = bodyY + row * CELL_H
+    const x = L.tableX + col * L.cellW
+    const y = bodyY + row * L.cellH
     const isRest = selectedDays.has(cell.dateStr)
 
-    // background
+    // background & border
     let bg: string, border: string
     if (isRest) {
       bg = C.restBg
@@ -151,18 +179,15 @@ export async function exportCalendarPdf(
     } else if (cell.isPadding) {
       bg = C.paddingBg
       border = C.paddingBorder
-    } else if (cell.isWeekend) {
-      bg = C.weekendBg
-      border = C.weekendBorder
     } else {
-      bg = C.normalBg
-      border = C.normalBorder
+      bg = C.cellBg
+      border = C.cellBorder
     }
 
     pdf.setFillColor(...hex(bg))
-    pdf.rect(x, y, CELL_W, CELL_H, 'F')
+    pdf.rect(x, y, L.cellW, L.cellH, 'F')
     pdf.setDrawColor(...hex(border))
-    pdf.rect(x, y, CELL_W, CELL_H, 'S')
+    pdf.rect(x, y, L.cellW, L.cellH, 'S')
 
     // day number
     let txtCol: string
@@ -170,50 +195,48 @@ export async function exportCalendarPdf(
       txtCol = C.restText
     } else if (cell.isPadding) {
       txtCol = C.paddingText
-    } else if (cell.isWeekend) {
-      txtCol = C.weekendText
     } else {
-      txtCol = C.normalText
+      txtCol = C.cellText
     }
     pdf.setTextColor(...hex(txtCol))
-    pdf.setFontSize(9)
+    pdf.setFontSize(16)
     pdf.setFont('helvetica', 'bold')
-    pdf.text(String(cell.day), x + 2.5, y + 5.5)
+    pdf.text(String(cell.day), x + 3, y + 7)
 
-    // "DESCANSO" label inside rest day cells
+    // "DESCANSO" inside rest cells
     if (isRest) {
       pdf.setTextColor(...hex(C.restLabel))
-      pdf.setFontSize(5.5)
+      pdf.setFontSize(9)
       pdf.setFont('helvetica', 'bold')
-      pdf.text('DESCANSO', x + CELL_W / 2, y + CELL_H / 2 + 4, { align: 'center' })
+      pdf.text('DESCANSO', x + L.cellW / 2, y + L.cellH / 2 + 5, { align: 'center' })
     }
   }
 
-  // ---------- summary footer ----------
+  // ── summary footer ──
   const sortedDays = [...selectedDays]
     .sort()
     .map((d) => parseInt(d.split('-')[2], 10))
 
   if (sortedDays.length > 0) {
     const totalRows = Math.ceil(cells.length / 7)
-    const sy = bodyY + totalRows * CELL_H + 12
+    const sy = bodyY + totalRows * L.cellH + 14
 
     pdf.setTextColor(...hex(C.summaryAccent))
-    pdf.setFontSize(9)
+    pdf.setFontSize(10)
     pdf.setFont('helvetica', 'bold')
     pdf.text(
       `${sortedDays.length} día${sortedDays.length !== 1 ? 's' : ''} de descanso:`,
-      TABLE_X,
+      L.tableX,
       sy,
     )
 
     pdf.setTextColor(...hex(C.summaryText))
-    pdf.setFontSize(8)
+    pdf.setFontSize(9)
     pdf.setFont('helvetica', 'normal')
-    pdf.text(sortedDays.join(', '), TABLE_X, sy + 5)
+    pdf.text(sortedDays.join(', '), L.tableX, sy + 5)
   }
 
-  // ---------- output ----------
+  // ── output ──
   const blob = pdf.output('blob')
   return URL.createObjectURL(blob)
 }

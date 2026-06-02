@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { exportCalendarPdf } from './exportPdf'
+import { exportCalendarPdf, type PdfTheme, type PdfOrientation } from './exportPdf'
 
 const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -22,6 +22,8 @@ export default function App() {
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [pdfTheme, setPdfTheme] = useState<PdfTheme>('dark')
+  const [pdfOrientation, setPdfOrientation] = useState<PdfOrientation>('portrait')
 
   const prevMonth = () => {
     if (month === 0) {
@@ -94,6 +96,8 @@ export default function App() {
         month,
         selectedDays,
         MONTHS[month],
+        pdfTheme,
+        pdfOrientation,
       )
       setPdfUrl(url)
 
@@ -236,13 +240,65 @@ export default function App() {
               </button>
             </div>
           ) : (
-            <button
-              onClick={handleExport}
-              disabled={exporting || selectedDays.size === 0}
-              className="w-full rounded-xl bg-amber-500 py-3.5 font-semibold text-slate-950 transition-colors hover:bg-amber-400 active:bg-amber-300 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-600"
-            >
-              {exporting ? 'Generando PDF…' : 'Descargar PDF'}
-            </button>
+            <>
+              {/* Theme selector */}
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-sm text-slate-400">Fondo:</span>
+                <button
+                  onClick={() => setPdfTheme('dark')}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                    pdfTheme === 'dark'
+                      ? 'bg-slate-600 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  }`}
+                >
+                  ⬛ Negro
+                </button>
+                <button
+                  onClick={() => setPdfTheme('light')}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                    pdfTheme === 'light'
+                      ? 'bg-white text-slate-900'
+                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  }`}
+                >
+                  ⬜ Blanco
+                </button>
+              </div>
+
+              {/* Orientation selector */}
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-sm text-slate-400">Hoja:</span>
+                <button
+                  onClick={() => setPdfOrientation('portrait')}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                    pdfOrientation === 'portrait'
+                      ? 'bg-slate-600 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  }`}
+                >
+                  ⟲ Vertical
+                </button>
+                <button
+                  onClick={() => setPdfOrientation('landscape')}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                    pdfOrientation === 'landscape'
+                      ? 'bg-slate-600 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  }`}
+                >
+                  ⟳ Horizontal
+                </button>
+              </div>
+
+              <button
+                onClick={handleExport}
+                disabled={exporting || selectedDays.size === 0}
+                className="w-full rounded-xl bg-amber-500 py-3.5 font-semibold text-slate-950 transition-colors hover:bg-amber-400 active:bg-amber-300 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-600"
+              >
+                {exporting ? 'Generando PDF…' : 'Descargar PDF'}
+              </button>
+            </>
           )}
 
           {error && (
