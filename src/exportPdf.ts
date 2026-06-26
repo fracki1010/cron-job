@@ -174,8 +174,8 @@ export async function exportCalendarPdf(
     // background & border
     let bg: string, border: string
     if (isRest) {
-      bg = C.restBg
-      border = C.restBorder
+      bg = C.cellBg
+      border = C.cellBorder
     } else if (cell.isPadding) {
       bg = C.paddingBg
       border = C.paddingBorder
