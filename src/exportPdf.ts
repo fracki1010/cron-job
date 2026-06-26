@@ -27,8 +27,6 @@ const THEMES: Record<PdfTheme, Record<string, string>> = {
     vacationBorder: '#4338ca',
     vacationText: '#c7d2fe',
     vacationLabel: '#a5b4fc',
-    summaryText: '#94a3b8',
-    summaryAccent: '#34d399',
   },
   light: {
     pageBg: '#ffffff',
@@ -50,8 +48,6 @@ const THEMES: Record<PdfTheme, Record<string, string>> = {
     vacationBorder: '#c7d2fe',
     vacationText: '#3730a3',
     vacationLabel: '#4338ca',
-    summaryText: '#475569',
-    summaryAccent: '#059669',
   },
 }
 
@@ -234,30 +230,6 @@ export async function exportCalendarPdf(
       pdf.setFont('helvetica', 'bold')
       pdf.text('DESCANSO', x + L.cellW / 2, y + L.cellH / 2 + 5, { align: 'center' })
     }
-  }
-
-  // ── summary footer ──
-  const sortedDays = [...selectedDays]
-    .sort()
-    .map((d) => parseInt(d.split('-')[2], 10))
-
-  const totalRows = Math.ceil(cells.length / 7)
-  const sy = bodyY + totalRows * L.cellH + 14
-
-  if (sortedDays.length > 0) {
-    pdf.setTextColor(...hex(C.summaryAccent))
-    pdf.setFontSize(10)
-    pdf.setFont('helvetica', 'bold')
-    pdf.text(
-      `${sortedDays.length} día${sortedDays.length !== 1 ? 's' : ''} de descanso:`,
-      L.tableX,
-      sy,
-    )
-
-    pdf.setTextColor(...hex(C.summaryText))
-    pdf.setFontSize(9)
-    pdf.setFont('helvetica', 'normal')
-    pdf.text(sortedDays.join(', '), L.tableX, sy + 5)
   }
 
   // ── output ──
