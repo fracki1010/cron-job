@@ -23,6 +23,10 @@ const THEMES: Record<PdfTheme, Record<string, string>> = {
     restText: '#6ee7b7',
     restBorder: '#34d399',
     restLabel: '#a7f3d0',
+    vacationBg: '#312e81',
+    vacationBorder: '#4338ca',
+    vacationText: '#c7d2fe',
+    vacationLabel: '#a5b4fc',
     summaryText: '#94a3b8',
     summaryAccent: '#34d399',
   },
@@ -39,9 +43,13 @@ const THEMES: Record<PdfTheme, Record<string, string>> = {
     paddingText: '#94a3b8',
     paddingBorder: '#e2e8f0',
     restBg: '#059669',
-    restText: '#ffffff',
+    restText: '#047857',
     restBorder: '#047857',
-    restLabel: '#d1fae5',
+    restLabel: '#047857',
+    vacationBg: '#eef2ff',
+    vacationBorder: '#c7d2fe',
+    vacationText: '#3730a3',
+    vacationLabel: '#4338ca',
     summaryText: '#475569',
     summaryAccent: '#059669',
   },
@@ -125,6 +133,7 @@ export async function exportCalendarPdf(
   monthName: string,
   theme: PdfTheme,
   orientation: PdfOrientation,
+  vacationRange: [number, number] | null,
 ): Promise<string> {
   const jsPdfOrientation = orientation === 'portrait' ? 'p' : 'l'
   const pdf = new jsPDF(jsPdfOrientation, 'mm', 'a4')
@@ -170,12 +179,20 @@ export async function exportCalendarPdf(
     const x = L.tableX + col * L.cellW
     const y = bodyY + row * L.cellH
     const isRest = selectedDays.has(cell.dateStr)
+    const isVacation =
+      vacationRange !== null &&
+      !cell.isPadding &&
+      cell.day >= vacationRange[0] &&
+      cell.day <= vacationRange[1]
 
-    // background & border
+    // background & border (priority: vacation > rest > padding > normal)
     let bg: string, border: string
-    if (isRest) {
-      bg = C.restBg
-      border = C.restBorder
+    if (isVacation) {
+      bg = C.vacationBg
+      border = C.vacationBorder
+    } else if (isRest) {
+      bg = C.cellBg
+      border = C.cellBorder
     } else if (cell.isPadding) {
       bg = C.paddingBg
       border = C.paddingBorder
@@ -191,7 +208,9 @@ export async function exportCalendarPdf(
 
     // day number
     let txtCol: string
-    if (isRest) {
+    if (isVacation) {
+      txtCol = C.vacationText
+    } else if (isRest) {
       txtCol = C.restText
     } else if (cell.isPadding) {
       txtCol = C.paddingText
@@ -203,8 +222,13 @@ export async function exportCalendarPdf(
     pdf.setFont('helvetica', 'bold')
     pdf.text(String(cell.day), x + 3, y + 7)
 
-    // "DESCANSO" inside rest cells
-    if (isRest) {
+    // label inside cell (priority: vacation > rest)
+    if (isVacation) {
+      pdf.setTextColor(...hex(C.vacationLabel))
+      pdf.setFontSize(9)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('VACACIONES', x + L.cellW / 2, y + L.cellH / 2 + 5, { align: 'center' })
+    } else if (isRest) {
       pdf.setTextColor(...hex(C.restLabel))
       pdf.setFontSize(9)
       pdf.setFont('helvetica', 'bold')
@@ -217,10 +241,10 @@ export async function exportCalendarPdf(
     .sort()
     .map((d) => parseInt(d.split('-')[2], 10))
 
-  if (sortedDays.length > 0) {
-    const totalRows = Math.ceil(cells.length / 7)
-    const sy = bodyY + totalRows * L.cellH + 14
+  const totalRows = Math.ceil(cells.length / 7)
+  const sy = bodyY + totalRows * L.cellH + 14
 
+  if (sortedDays.length > 0) {
     pdf.setTextColor(...hex(C.summaryAccent))
     pdf.setFontSize(10)
     pdf.setFont('helvetica', 'bold')
