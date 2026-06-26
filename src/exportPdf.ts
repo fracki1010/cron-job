@@ -125,6 +125,7 @@ export async function exportCalendarPdf(
   monthName: string,
   theme: PdfTheme,
   orientation: PdfOrientation,
+  vacationRange: [number, number] | null,
 ): Promise<string> {
   const jsPdfOrientation = orientation === 'portrait' ? 'p' : 'l'
   const pdf = new jsPDF(jsPdfOrientation, 'mm', 'a4')
@@ -217,10 +218,10 @@ export async function exportCalendarPdf(
     .sort()
     .map((d) => parseInt(d.split('-')[2], 10))
 
-  if (sortedDays.length > 0) {
-    const totalRows = Math.ceil(cells.length / 7)
-    const sy = bodyY + totalRows * L.cellH + 14
+  const totalRows = Math.ceil(cells.length / 7)
+  const sy = bodyY + totalRows * L.cellH + 14
 
+  if (sortedDays.length > 0) {
     pdf.setTextColor(...hex(C.summaryAccent))
     pdf.setFontSize(10)
     pdf.setFont('helvetica', 'bold')
@@ -234,6 +235,24 @@ export async function exportCalendarPdf(
     pdf.setFontSize(9)
     pdf.setFont('helvetica', 'normal')
     pdf.text(sortedDays.join(', '), L.tableX, sy + 5)
+  }
+
+  // ── vacation block ──
+  const vacationY = sortedDays.length > 0 ? sy + 9 : sy
+  if (vacationRange) {
+    pdf.setTextColor(...hex(C.summaryAccent))
+    pdf.setFontSize(10)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('VACACIONES:', L.tableX, vacationY)
+
+    pdf.setTextColor(...hex(C.summaryText))
+    pdf.setFontSize(9)
+    pdf.setFont('helvetica', 'normal')
+    pdf.text(
+      `${vacationRange[0]} al ${vacationRange[1]} de ${monthName} de ${year}`,
+      L.tableX,
+      vacationY + 5,
+    )
   }
 
   // ── output ──
